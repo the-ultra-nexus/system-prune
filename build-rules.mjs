@@ -27,12 +27,10 @@ const dropBlocksContaining = [
 // 这两段都不整段删：Memory 的写作协议有用，只中和「不是指令」那句；
 // Context management 的「不要提前收尾」正是要留的，只砍 Artifact 那一段。
 const dropSections = []
-const cuts = [
-  [
-    "To make a small change to a page you already published",
-    "you can't place the change exactly from it.",
-  ],
-]
+// 2026-10-30 探针实测（probe.mjs P1「小改已发布页面」，70 次/臂，随机交错，hw/group/group）：
+// 删掉这段时 32/70 先 Edit 且不 publish；保留时 53/70 直接 publish + edits（-30pp，p=0.0005）。
+// 人设那条压缩版只顶得回一半（再去掉它掉到 8/40）。这段不切了。
+const cuts = []
 const dropLinesMatching = [
   "^ - Claude Code is available as a CLI in the terminal",
   "^ - Fast mode for Claude Code",

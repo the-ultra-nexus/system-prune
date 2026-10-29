@@ -51,7 +51,23 @@ magpie plugin off system-prune && magpie plugin on system-prune
 | `pi-native.system.txt` | pi 原生提示词快照 |
 | `verify.mjs` / `show-rules.mjs` / `dump-diff.mjs` | 链路验证 / 当前生效规则 / 生成对比 |
 | `ab-test.mjs` | 中间件开/关的行为 A/B（工具选择、任务完成、风格、缓存） |
+| `probe.mjs` / `probe-cases.mjs` / `probe-stats.mjs` | 探针实验：A/B/E 三臂测某段删掉前后的行为差（合成对话，直连网关） |
 | `scrub-fixtures.mjs` | 发布前脱敏（device_id / session_id / KEY 占位） |
+
+## 探针实验（prompt 消融）
+
+判断「删掉某段」到底改变了什么行为，用探针直接发请求，不走 agent CLI。
+
+```bash
+node probe.mjs selfcheck                       # A/B 只差目标段，tools/messages 逐字相同
+node probe.mjs build                           # 请求体写到 /tmp/probe/requests
+node probe.mjs run --arms A,B --runs 10 --out /tmp/probe/main.jsonl --randomize
+node probe.mjs score --out /tmp/probe/main.jsonl
+```
+
+三臂：`A` 现状（段被切）、`B` 原文按原位插回、`E` 再把工具描述/schema/人设里的同义说明压掉（灵敏度对照）。没有 `E`，`A≈B` 无法区分「这段冗余」和「探针分不出来」。
+
+网关必须旁路：`run` 会临时把插件 options 的 `agents` 置空并在结束时恢复，否则 `B` 臂的段会被网关重新切掉。`claude -p` 不能用于这类验证——SDK 入口的 system 里本来就没有这些段。
 
 ## 注意
 

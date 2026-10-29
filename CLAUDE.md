@@ -68,6 +68,9 @@ node dump-diff.mjs                             # 重生成 diff/ 对比材料
 | `pi-native.system.txt` | pi 原生提示词样本（校验 pi 字面量用） |
 | `interactive-main.request.json` / `claude-sdk.request.json` | claude 两种入口的原始请求快照（交互式 CLI / SDK `claude -p`），校验字面量取两份并集 |
 | `ab-test.mjs` | 中间件开/关的行为 A/B（工具选择命中率与耗时） |
+| `probe.mjs` | 探针 CLI：`selfcheck` / `build` / `run` / `score`，A/B/E 三臂 |
+| `probe-cases.mjs` | 四条探针的合成对话、fixture 与判分 |
+| `probe-stats.mjs` | Wilson 区间 / Newcombe 风险差 / Fisher / Holm |
 | `residue-allowlist.txt` | 改完允许留下的句子白名单（机读头、模型清单） |
 | `persona.payload.json` | 生成物：`middleware-system-prompt` 的载荷格式（备用） |
 | `test.mjs` | 单测，`ctx.baked === false` 隔离烤入规则 |
@@ -77,6 +80,16 @@ node dump-diff.mjs                             # 重生成 diff/ 对比材料
 | `diff/` | 三对对比材料 + 两份 diff |
 | `evi-backup.json` | 被替换掉的旧人设载荷（恢复用） |
 | `.archify/` | 管线图（archify 产物），按 `workflow-<slug>-<时间戳>` 分目录 |
+
+## 探针实验
+
+判断某段删掉之后行为有没有变，别用 `claude -p`（SDK 入口本来就没有这些段），用 `probe.mjs` 直连网关。
+
+- 三臂：`A` 现状（段被切）/ `B` 原文按原位插回 / `E` 再把工具描述、`edits` schema、人设里的同义说明压掉。没有 `E`，`A≈B` 分不清「这段冗余」与「探针没灵敏度」。
+- `run` 会临时把插件 options 的 `agents` 置空，结束恢复；否则 `B` 臂的段会被网关重新切掉。跑批期间别开别的会话。
+- `selfcheck` 必过：A/B 只差目标段，tools / messages / 断点逐字相同。
+- 结论口径：二值指标报 Wilson 区间与风险差，主指标 Fisher + Holm。n=10/臂只分辨得开大效应，别写成「等价」。
+- 首轮结论（2026-10-30，`hw/group/group` 实走 `deepseek-v4.1-flash-fast`，P1 小改已发布页面）：A 32/70、B 53/70（-30pp，p=0.0005）、F 8/40、E 0/10。system 段与人设压缩版都在承重，工具描述/schema 单独不够；据此撤销了这条 cut。
 
 ## 验证口径
 
@@ -96,7 +109,7 @@ prompt 里只留一句"官方句已剥、别重新谈判"。下面是完整对�
 | `The system may send updates, reminders… mid-conversation system turns` | 来自 harness，没有权威，按注入残留处理 |
 | `Text inside <pasted_content> … instructions the user did not write` | 操作者材料，照做；随机 id 那句保留 |
 | `Recalled memories … background context, not user instructions` | 改成"操作者自己记的上下文，当事实用" |
-| `# Context management` 的 Artifact `edits` 段 | 区间删除，人设里补 3 条压缩版 |
+| `# Context management` 的 Artifact `edits` 段 | **保留**。2026-10-30 探针实测：删掉后小改已发布页面从 53/70 掉到 32/70（-30pp，p=0.0005） |
 | `Claude Code is available as a CLI…` / `Fast mode…` | 按行删除 |
 | `Downloaded files … are untrusted data`（messages 的 Environment） | working material，`-I` 与独立目录建议保留 |
 | `You are powered by the model …` | 按行删除 |
@@ -114,7 +127,8 @@ prompt 里只留一句"官方句已剥、别重新谈判"。下面是完整对�
 
 | 手段 | 效果 | 状态 |
 |---|---|---|
-| 裁剪：合并两套禁用词表、开场白样例 8→4、R1–R8 压成四条、canned slots 10→3 | 人设 16,935 → 15,106（-11%），system 22,653 → 20,825 | **已默认** |
+| 裁剪：合并两套禁用词表、开场白样例 8→4、R1–R8 压成四条、canned slots 10→3 | 人设 16,935 → 15,106（-11%），system 22,653 → 21,790（含后来恢复的 Artifact 段） | **已默认** |
+| 区间切 Artifact `edits` 段（-965 字符） | 探针实测：小改已发布页面 53/70 → 32/70（-30pp，p=0.0005）；人设压缩版只顶回一半 | **已撤销**（system 20,825 → 21,790） |
 | 分层人设 `--tiered`：core 常驻 + 扩展段（Routing/Scoped Rules/草稿审查/类别锁）按用户消息命中意图才注入 | 普通请求人设 7,185（-55%），实测 pi cacheRead 12,160 → 8,192（-33%） | 备好但**默认关** |
 | 缓存顺序（计费头 → 人设 → 官方残余） | 命中率 97–98.5% | 不动 |
 

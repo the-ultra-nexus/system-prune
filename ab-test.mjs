@@ -1,7 +1,7 @@
 // A/B v2：工具选择 + 回复质量 + 缓存命中，每个用例跑 N 次。
 // 用法：node ab-test.mjs [claude|pi|both] [--runs=5]
-// 会临时把中间件关掉再打开，跑完恢复原 options。别在别的会话忙的时候跑。
-import { execFileSync, execSync } from "node:child_process"
+// 每轮临时把插件 options 的 agents 名单清空（等于关掉中间件），跑完恢复。别在别的会话忙的时候跑。
+import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 
@@ -48,8 +48,25 @@ function fixtures() {
   fs.writeFileSync(path.join(WORK, "e.txt"), "nothing here\n")
 }
 
+// 网关里注册的 key 是安装时的绝对路径，不是文件名。
+function pluginKey() {
+  try {
+    const j = JSON.parse(execFileSync("magpie", ["plugin", "list", "--json"], { encoding: "utf8" }))
+    const keys = Object.keys(j.middleware || {})
+    if (keys.length) return keys[0]
+  } catch {}
+  return process.cwd()
+}
+
+const PLUGIN = pluginKey()
+
+function getOptions() {
+  return JSON.parse(execFileSync("magpie", ["plugin", "options", PLUGIN], { encoding: "utf8" }))
+}
+
+// 用数组参数传 JSON：规则文本里有单引号（Anthropic's、can't），拼 shell 字符串会被撕开。
 function setAgents(list) {
-  execSync(`magpie plugin options system-prune.middleware.js '${JSON.stringify({ agents: list })}'`, { stdio: "ignore" })
+  execFileSync("magpie", ["plugin", "options", PLUGIN, JSON.stringify({ ...getOptions(), agents: list })], { stdio: "ignore" })
 }
 
 function usageOf(u) {
@@ -110,7 +127,7 @@ function runPi(task) {
 const RUNNER = { claude: runClaude, pi: runPi }
 const targets = arg === "both" ? ["claude", "pi"] : [arg]
 const rows = []
-const baseline = execSync("magpie plugin options system-prune.middleware.js", { encoding: "utf8" }).trim()
+const baseline = getOptions()
 
 try {
   for (const arm of ["on", "off"]) {
@@ -134,7 +151,7 @@ try {
     }
   }
 } finally {
-  execSync(`magpie plugin options system-prune.middleware.js '${baseline.replace(/\n/g, "")}'`, { stdio: "ignore" })
+  execFileSync("magpie", ["plugin", "options", PLUGIN, JSON.stringify(baseline)], { stdio: "ignore" })
 }
 
 fs.writeFileSync("/tmp/ab-results.json", JSON.stringify(rows, null, 2))
