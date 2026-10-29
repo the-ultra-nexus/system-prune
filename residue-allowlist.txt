@@ -1,0 +1,4 @@
+# 改完之后允许留在上下文里的句子（子串匹配，一行一个）。
+# 只放"故意保留"的：机读头、模型清单、工具法律条款之类。放不进去的要么删要么改。
+x-anthropic-billing-header
+Model IDs for anything you build

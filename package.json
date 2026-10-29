@@ -1,0 +1,20 @@
+{
+  "name": "system-prune-middleware",
+  "private": true,
+  "type": "module",
+  "magpie": {
+    "middleware": "./system-prune.middleware.js",
+    "options": {
+      "dropBlocksContaining": [],
+      "dropSections": [],
+      "cuts": [],
+      "replacements": [],
+      "dropLinesMatching": [],
+      "prependBlocks": [],
+      "appendBlocks": [],
+      "squeezeBlank": true,
+      "agents": [],
+      "debug": false
+    }
+  }
+}
