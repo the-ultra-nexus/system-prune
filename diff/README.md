@@ -29,7 +29,7 @@ Claude Code 把 Environment、MCP 指令、skills 目录放在这条消息里。
 ## 重新生成
 
 ```bash
-cd ~/agent-workspace/system-prune
+cd ~/projects/opensource/system-prune
 node dump-diff.mjs                                  # 落 before/after 四对
 for f in official messages tools; do
   diff -u diff/before-$f.md diff/after-$f.md > diff/$f.diff

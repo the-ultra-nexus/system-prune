@@ -46,7 +46,7 @@ magpie plugin options system-prune.middleware.js '{"agents":["claude","pi"]}'   
 ## 改一次规则的完整流程
 
 ```bash
-cd ~/agent-workspace/system-prune
+cd ~/projects/opensource/system-prune
 # 1) 改 claude-system-prompt.zh.md（人设）或 build-claude-rules.mjs（删/改规则）
 node build-rules.mjs --with-prompt            # 生成 rules.<agent>.json + 烤入中间件
 node test.mjs                                  # 20 条单测
