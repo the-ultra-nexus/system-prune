@@ -1,5 +1,5 @@
---- diff/before-tools.md	2026-10-29 23:49:01
-+++ diff/after-tools.md	2026-10-29 23:49:01
+--- diff/claude/before-tools.md	2026-10-30 18:20:53
++++ diff/claude/after-tools.md	2026-10-30 18:20:53
 @@ -62,7 +62,7 @@
  
  **Separate tools**: Claude handles comment threads on a published artifact with `ArtifactComments` and an artifact's shared database with `ArtifactData`, whose actions are what a skill or type instruction means by `read_db` or `write_db`. Claude loads either tool when it needs it, and if one appears only as a deferred tool's name, Claude loads it the way this session loads deferred tools before calling it.

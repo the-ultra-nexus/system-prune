@@ -1,38 +1,68 @@
 # 对比材料
 
-三对差异，纯文本，`diff -u` 直接看。
+每个 agent 一套 before/after，全部由 `node dump-diff.mjs` 从真实样本重生成（含 `diff -u` 成品）。别手改，改完重跑。
 
-## 一、system 块（真正被删/改的官方正文）
+```
+diff/
+  claude/   交互式 CLI 的 anthropic 请求快照（interactive-main.request.json）
+  pi/       原生提示词拼最小 chat 请求（pi-native.system.txt）
+  prompt-dsh-vs-claude.diff   历史材料，见第四节
+```
+
+## 一、claude
+
+样本 `interactive-main.request.json`，规则 `rules.claude.json`。
 
 | 文件 | 是什么 |
 |---|---|
-| `before-system.md` / `after-system.md` | 改前/改后完整 system，含计费头与人设段 |
-| `before-official.md` / `after-official.md` | 剥掉计费头和人设后的官方正文，55 行 → 29 行，7399 → 5504 字符 |
-| `official.diff` | 上面两份的差异 |
+| `before-system.md` / `after-system.md` | 完整 system，含计费头与人设块，逐块标 cache_control 与字符数 |
+| `system.diff` | 上面两份的差异（人设整段插入，368 行） |
+| `before-official.md` / `after-official.md` | 剥掉计费头和人设后的官方正文 |
+| `official.diff` | 官方正文的净变化：**7,399 → 6,611 字符** |
+| `before-messages.md` / `after-messages.md` / `messages.diff` | `role=system` 那条消息（Environment、MCP、skills 在这），两处改动：`untrusted data` → `working material`、`You are powered by the model …` 整行删除 |
+| `before-tools.md` / `after-tools.md` / `tools.diff` | 15 个工具的 description，命中两条：Artifact 的仿冒/伪造禁令、SendFeedback 的 exploit 禁令 |
 
-改后比改前大，是因为新增蓝汐人设整段（16342 字符）；官方正文本身是净减。
+system 全文 7,470 → 21,790 字符：官方正文净减 788，人设净增 15,106。
 
-## 二、messages 里 role=system 的正文
+## 二、pi
 
-`before-messages.md` / `after-messages.md` / `messages.diff`
-Claude Code 把 Environment、MCP 指令、skills 目录放在这条消息里。改动两处：`untrusted data` → `working material`，`You are powered by the model …` 整行删除。
+样本 `pi-native.system.txt`（1,834 字符），规则 `rules.pi.json`。chat 形状下 system 是 `messages[0]`，人设拼在原生文本前面。
 
-## 三、工具描述
+| 文件 | 是什么 |
+|---|---|
+| `before-system.md` / `after-system.md` | 整段 system（人设 + 原生），`<!-- part 0 … chars -->` 标长度 |
+| `system.diff` | 上面两份的差异（人设整段插入，321 行） |
+| `before-official.md` / `after-official.md` | 剥掉人设后的原生正文 |
+| `official.diff` | 净变化：**1,834 → 1,770 字符**，只有一处替换 |
 
-`before-tools.md` / `after-tools.md` / `tools.diff`
-15 个工具的 description 走同一套替换，实际命中两条：Artifact 的仿冒/伪造禁令、SendFeedback 的 exploit 禁令。
+`official.diff` 里就一处：
 
-## 四、DeepSeek 稿 vs Claude 稿
+```diff
+-You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.
++You work inside pi, a coding agent harness: you read files, run commands, edit code, and write new files.
+```
 
-`prompt-dsh-vs-claude.diff`：`~/agent-workspace/dsh-purge-deepseek-prompt.zh.md` 与 `claude-system-prompt.zh.md` 的差异。5 处：去 ChatML 信封、加「宿主层」对照表、加「工具层（Claude Code）」、扩「外来模式」、范围补 permission mode 一句；正文其余逐字相同。
+`<rules>` 里那句 `Use bash for file operations like ls, rg, find` **不动**。pi 没有独立的 `grep`/`find`/`ls` 工具，「找」只能走 bash，把它改成「专用工具优先」在行为上等价，却让官方正文多 149 字符、多一处随 pi 工具集漂移的 `MISS` 点。读/改/建优先 `read`/`edit`/`write` 由人设那条覆盖（`persona.pi.zh.md:54`）。要改回去，`build-rules.mjs` 的 `piRules.replacements` 里留了注释掉的一行，解开即可。
 
-## 重新生成
+pi 不出 `messages` / `tools` 两个文件：chat 形状下 system 就是 messages 第 0 条（再抄一份只是自我重复），而样本抓于无工具会话，`<tools>` 段写的是 `(none)`，没有 `tools` 数组可对比。真实 pi 会话带工具描述，那时 `pruneTools` 会走 chat 形状单独处理，需要用带工具的快照重跑才能看到那部分。
+
+## 三、重新生成
 
 ```bash
-cd ~/projects/opensource/system-prune
-node dump-diff.mjs                                  # 落 before/after 四对
-for f in official messages tools; do
-  diff -u diff/before-$f.md diff/after-$f.md > diff/$f.diff
-done
-diff -u ~/agent-workspace/dsh-purge-deepseek-prompt.zh.md claude-system-prompt.zh.md > diff/prompt-dsh-vs-claude.diff
+node dump-diff.mjs                    # claude + pi 都出
+node dump-diff.mjs pi                 # 只出 pi
+node dump-diff.mjs claude rules.claude.json claude-sdk.request.json   # 换快照
+node scrub-fixtures.mjs               # 发布前脱敏，幂等
+```
+
+脚本自己跑 `diff -u` 落成品（`diff` 的退出码 1 = 有差异，属正常）。人设字面量靠 `rules.<agent>.json` 的 `prependBlocks` 剔除，所以先 `node build-rules.mjs --with-prompt` 再跑本脚本。
+
+## 四、DeepSeek 稿 vs Claude 稿（历史）
+
+`prompt-dsh-vs-claude.diff`：`~/agent-workspace/dsh-purge-deepseek-prompt.zh.md` 与 `persona.claude.zh.md` 的差异。
+
+这份只当历史材料看：两稿已经分叉（92 增 / 59 删行），不再是当年「5 处小改、其余逐字相同」的状态——人设这边经过裁剪（16,935 → 15,106）和多轮改写，DeepSeek 稿没跟。要看当前链路改了什么，用上面两节。
+
+```bash
+diff -u ~/agent-workspace/dsh-purge-deepseek-prompt.zh.md persona.claude.zh.md > diff/prompt-dsh-vs-claude.diff
 ```
