@@ -1,10 +1,11 @@
 // 发布前脱敏：请求快照里的 device_id / session_id、magpie 的 API_KEY 占位名。
-// 幂等，跑几次都一样。用法：node scrub-fixtures.mjs
+// 幂等，跑几次都一样。用法：node scripts/scrub-fixtures.mjs
 import fs from "node:fs"
+import { DIFF_DIR, SAMPLES } from "./paths.mjs"
 
-const REQUESTS = ["interactive-main.request.json", "claude-sdk.request.json", "interactive-title.request.json"]
-const TEXTUAL = ["live.claude.md"]
-const DIRS = ["diff"]   // 递归扫子目录（diff/claude、diff/pi）
+const REQUESTS = [SAMPLES.main, SAMPLES.sdk, SAMPLES.title]
+const TEXTUAL = [SAMPLES.live]
+const DIRS = [DIFF_DIR]   // 递归扫子目录（claude/、pi/）
 
 let touched = 0
 

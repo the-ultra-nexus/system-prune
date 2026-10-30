@@ -1,6 +1,5 @@
 node_modules/
 .DS_Store
 *.bak
-evi-backup.json
-interactive-index.jsonl
+local/
 .archify/

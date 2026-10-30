@@ -1,16 +1,18 @@
-// 文档一致性检查：把 CONVENTIONS.md 里能机检的条款变成断言。
-// 用法：node check-docs.mjs
+// 文档一致性检查：把 docs/CONVENTIONS.md 里能机检的条款变成断言。
+// 用法：node scripts/check-docs.mjs
 // 只看文本，不跑网关，不读 .gitignore 之外的东西（git 缺席时跳过覆盖检查）。
 import fs from "node:fs"
+import path from "node:path"
 import { execFileSync } from "node:child_process"
+import { ROOT } from "./paths.mjs"
 
-const DOCS = ["README.md", "CLAUDE.md", "CONVENTIONS.md", "WORKFLOW.md", "diff/README.md"]
+const DOCS = ["README.md", "CLAUDE.md", "docs/CONVENTIONS.md", "docs/WORKFLOW.md", "docs/diff/README.md"]
 const problems = []
 const notes = []
 
-const read = (f) => fs.readFileSync(f, "utf8")
+const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8")
 const exists = (f) => {
-  try { fs.accessSync(f); return true } catch { return false }
+  try { fs.accessSync(path.join(ROOT, f)); return true } catch { return false }
 }
 
 // 仓库里所有 .mjs 的 basename，用来判断文档里的命令有没有指向不存在的脚本。
@@ -24,7 +26,7 @@ function scriptNames() {
       else if (entry.name.endsWith(".mjs")) out.add(entry.name)
     }
   }
-  walk(".")
+  walk(ROOT)
   return out
 }
 
@@ -34,8 +36,12 @@ const docs = Object.fromEntries(DOCS.map((f) => [f, read(f)]))
 // ── 1. 文档里的 node 命令必须指向存在的脚本 ────────────────────────────────
 for (const [file, text] of Object.entries(docs)) {
   for (const m of text.matchAll(/node\s+([\w./~-]+\.mjs)/g)) {
-    const base = m[1].split("/").pop()
-    if (!scripts.has(base)) problems.push(`${file}: node ${m[1]} —— 仓库里没有这个脚本`)
+    const rel = m[1]
+    const base = rel.split("/").pop()
+    if (!scripts.has(base)) problems.push(`${file}: node ${rel} —— 仓库里没有这个脚本`)
+    else if (rel.includes("/") && !rel.startsWith("~/") && !exists(rel)) {
+      problems.push(`${file}: node ${rel} —— 路径不对，脚本在别处`)
+    }
   }
 }
 
@@ -61,42 +67,51 @@ if (tableReadme && tableClaude && tableReadme !== tableClaude) {
   problems.push("README.md 与 CLAUDE.md 的文件表不一致 —— 两张表要逐字相同")
 }
 
-// ── 4. 文件表覆盖所有已跟踪的顶层文件 ──────────────────────────────────
-const EXEMPT = new Set(["README.md", "CLAUDE.md", "CONVENTIONS.md", "WORKFLOW.md", "package.json", ".gitignore"])
+// ── 4. 文件表覆盖所有已跟踪文件（目录行 `dir/` 可覆盖其下全部文件）────────
+const EXEMPT = new Set([
+  "README.md", "CLAUDE.md", "docs/CONVENTIONS.md", "docs/WORKFLOW.md",
+  "package.json", ".gitignore",
+])
+// 表里写了 `dir/` 就算覆盖了 dir 下的文件。
+const covered = (f) => {
+  if (tableReadme.includes(`\`${f}\``)) return true
+  const parts = f.split("/")
+  for (let i = 1; i < parts.length; i++) {
+    if (tableReadme.includes(`\`${parts.slice(0, i).join("/")}/\``)) return true
+  }
+  return false
+}
 let tracked = []
 try {
-  tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean)
+  tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean)
 } catch {
   notes.push("git 不可用，跳过文件表覆盖检查")
 }
 if (tracked.length) {
-  const top = tracked.filter((f) => !f.includes("/"))
-  for (const f of top) {
+  for (const f of tracked) {
     if (EXEMPT.has(f)) continue
-    if (!tableReadme.includes(f)) problems.push(`README.md 文件表漏了已入库文件 ${f}`)
-    if (tableClaude && !tableClaude.includes(f)) problems.push(`CLAUDE.md 文件表漏了已入库文件 ${f}`)
+    if (!covered(f)) problems.push(`README.md 文件表漏了已入库文件 ${f}`)
   }
   // 表里点名、但仓库里不存在的路径（本地文件除外）也算漂了。
   for (const m of tableReadme.matchAll(/`([\w./-]+\.(?:mjs|js|json|md|txt|jsonl))`/g)) {
     const f = m[1]
-    if (exists(f)) continue
-    if (tracked.includes(f)) continue
+    if (exists(f) || tracked.includes(f)) continue
     notes.push(`文件表里的 ${f} 不在仓库里（本地文件请注明「本地」）`)
   }
 }
 
-// ── 5. 单测条数与 test.mjs 的实际用例数一致 ────────────────────────────
-const caseCount = (read("test.mjs").match(/^\/\/ (\d+)\. /gm) || []).length
-for (const file of ["README.md", "CLAUDE.md", "CONVENTIONS.md"]) {
+// ── 5. 单测条数与 test/test.mjs 的实际用例数一致 ────────────────────────
+const caseCount = (read("test/test.mjs").match(/^\/\/ (\d+)\. /gm) || []).length
+for (const file of ["README.md", "CLAUDE.md", "docs/CONVENTIONS.md"]) {
   for (const m of docs[file].matchAll(/(\d+)\s*条(?:中间件行为)?单测/g)) {
     if (Number(m[1]) !== caseCount) {
-      problems.push(`${file}: 写了 ${m[1]} 条单测，test.mjs 实际 ${caseCount} 条`)
+      problems.push(`${file}: 写了 ${m[1]} 条单测，test/test.mjs 实际 ${caseCount} 条`)
     }
   }
 }
 
 // ── 6. probe.mjs 的子命令必须与代码里的 switch 一致 ────────────────────
-const probeCmds = new Set((read("probe.mjs").match(/cmd === "([a-z-]+)"/g) || [])
+const probeCmds = new Set((read("probe/probe.mjs").match(/cmd === "([a-z-]+)"/g) || [])
   .map((s) => s.replace(/cmd === "|"/g, "")))
 for (const [file, text] of Object.entries(docs)) {
   for (const m of text.matchAll(/probe\.mjs\s+([a-z-]+)/g)) {

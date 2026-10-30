@@ -1,22 +1,23 @@
 // 探针：删掉 system 里 Artifact `edits` 段之后，模型行为有没有变。
 // 用法：
-//   node probe.mjs plan
-//   node probe.mjs selfcheck
-//   node probe.mjs build [--arms A,B,E] [--probes P1,P2,P3,P4] [--out /tmp/probe/requests]
-//   node probe.mjs run   [--arms A,B,E] [--probes P1,P2] [--runs 5] [--randomize] [--gateway override|direct]
-//   node probe.mjs score [--out /tmp/probe/runs.jsonl]
-//   node probe.mjs restore                       # 把 options 恢复成 run 之前存下的基线
+//   node probe/probe.mjs plan
+//   node probe/probe.mjs selfcheck
+//   node probe/probe.mjs build [--arms A,B,E] [--probes P1,P2,P3,P4] [--out /tmp/probe/requests]
+//   node probe/probe.mjs run   [--arms A,B,E] [--probes P1,P2] [--runs 5] [--randomize] [--gateway override|direct]
+//   node probe/probe.mjs score [--out /tmp/probe/runs.jsonl]
+//   node probe/probe.mjs restore                       # 把 options 恢复成 run 之前存下的基线
 // 默认 ARMS=A,B,E；F 只压人设里的同义说明，用于归因。OUT 默认 /tmp/probe/runs.jsonl。
 // A = 现状（段被切）；B = 原文按原位插回；E = A 再把工具描述/schema/人设里的三份同义说明压掉（灵敏度对照）。
 import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
 import { execFileSync } from "node:child_process"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
+import { SAMPLES } from "../scripts/paths.mjs"
 import { PROBES, fixtures } from "./probe-cases.mjs"
 import { wilson, diffCI, fisher, holm } from "./probe-stats.mjs"
 
-const RAW_FILE = "interactive-main.request.json"
+const RAW_FILE = SAMPLES.main
 const RAW = JSON.parse(fs.readFileSync(RAW_FILE, "utf8"))
 
 const argv = process.argv.slice(2)

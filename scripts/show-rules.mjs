@@ -1,11 +1,12 @@
 // 看中间件此刻实际会执行什么：烤入的规则 + options 叠加后的结果。
-// 用法：node show-rules.mjs [options.json]
-//   node show-rules.mjs                     # 只看烤入的那份
-//   node show-rules.mjs rules.claude.json   # 看叠加以后的
+// 用法：node scripts/show-rules.mjs [options.json]
+//   node scripts/show-rules.mjs                # 只看烤入的那份
+//   node scripts/show-rules.mjs rules/rules.claude.json   # 看叠加以后的
 import fs from "node:fs"
+import { SAMPLES } from "./paths.mjs"
 
-const mod = await import("./system-prune.middleware.js")
-const body = JSON.parse(fs.readFileSync("interactive-main.request.json", "utf8"))
+const mod = await import("../src/system-prune.middleware.js")
+const body = JSON.parse(fs.readFileSync(SAMPLES.main, "utf8"))
 const before = body.system.map((b) => b.text || "").join("\n").length
 
 const opts = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : undefined

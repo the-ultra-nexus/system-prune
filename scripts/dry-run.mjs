@@ -1,8 +1,11 @@
+// 手工试跑：拿一条真实请求跑一遍自定义规则，打印块与字节变化。
+// 用法：node scripts/dry-run.mjs [request.json]
 import fs from "node:fs"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
+import { SAMPLES } from "./paths.mjs"
 
-const file = process.argv[2] || "interactive-main.request.json"
-const raw = fs.readFileSync(new URL(file, import.meta.url), "utf8")
+const file = process.argv[2] || SAMPLES.main
+const raw = fs.readFileSync(file, "utf8")
 const body = JSON.parse(raw)
 
 const before = JSON.stringify(body).length

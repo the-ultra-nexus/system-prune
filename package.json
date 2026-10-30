@@ -2,8 +2,17 @@
   "name": "system-prune-middleware",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "node scripts/build-rules.mjs --with-prompt",
+    "test": "node test/test.mjs",
+    "verify": "node scripts/verify.mjs claude && node scripts/verify.mjs pi",
+    "show": "node scripts/show-rules.mjs",
+    "diff": "node scripts/dump-diff.mjs",
+    "scrub": "node scripts/scrub-fixtures.mjs",
+    "check": "node scripts/check-docs.mjs"
+  },
   "magpie": {
-    "middleware": "./system-prune.middleware.js",
+    "middleware": "./src/system-prune.middleware.js",
     "options": {
       "dropBlocksContaining": [],
       "dropSections": [],

@@ -1,13 +1,15 @@
-// 重新生成 diff/ 下的对比材料：每个 agent 一套 before/after，外加 diff -u 成品。
-// 用法：node dump-diff.mjs [claude|pi|both] [rules.json] [request.json]
-//   node dump-diff.mjs                 # 两个 agent 都出
-//   node dump-diff.mjs pi              # 只出 pi
-//   node dump-diff.mjs claude rules.claude.json claude-sdk.request.json   # 换快照
+// 重新生成 docs/diff/ 下的对比材料：每个 agent 一套 before/after，外加 diff -u 成品。
+// 用法：node scripts/dump-diff.mjs [claude|pi|both] [rules.json] [request.json]
+//   node scripts/dump-diff.mjs                # 两个 agent 都出
+//   node scripts/dump-diff.mjs pi             # 只出 pi
+//   node scripts/dump-diff.mjs claude rules/rules.claude.json samples/claude-sdk.request.json   # 换快照
 // claude 走 anthropic 形状（真实请求快照），pi 走 chat 形状（原生提示词拼最小请求）。
-// diff/*.diff 由本脚本直接生成，不用再手工跑 diff -u。
+// docs/diff/*.diff 由本脚本直接生成，不用再手工跑 diff -u。
 import fs from "node:fs"
+import path from "node:path"
 import { execFileSync } from "node:child_process"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
+import { DIFF_DIR, ROOT, RULES, SAMPLES } from "./paths.mjs"
 
 const argv = process.argv.slice(2)
 const which = ["claude", "pi", "both"].includes(argv[0]) ? argv[0] : "both"
@@ -16,12 +18,12 @@ const rest = ["claude", "pi", "both"].includes(argv[0]) ? argv.slice(1) : argv
 const AGENTS = {
   claude: {
     protocol: "anthropic",
-    sample: rest[1] || "interactive-main.request.json",
+    sample: rest[1] || SAMPLES.main,
     body: (f) => JSON.parse(fs.readFileSync(f, "utf8")),
   },
   pi: {
     protocol: "chat",
-    sample: "pi-native.system.txt",
+    sample: SAMPLES.pi,
     body: (f) => ({
       model: "pi",
       messages: [{ role: "system", content: fs.readFileSync(f, "utf8") }, { role: "user", content: "hi" }],
@@ -89,11 +91,11 @@ function writeDiff(a, b, out) {
 
 function runAgent(agent) {
   const spec = AGENTS[agent]
-  const rules = JSON.parse(fs.readFileSync(`rules.${agent}.json`, "utf8"))
+  const rules = JSON.parse(fs.readFileSync(RULES[agent], "utf8"))
   const before = spec.body(spec.sample)
   const after = clone(before)
   onRequest(after, { protocol: spec.protocol, agent, options: rules })
-  const dir = `diff/${agent}`
+  const dir = path.join(DIFF_DIR, agent)
   fs.mkdirSync(dir, { recursive: true })
 
   fs.writeFileSync(`${dir}/before-system.md`, render(before, spec.protocol))
@@ -122,11 +124,11 @@ function runAgent(agent) {
 
   const beforeSys = isChat(spec.protocol) ? partsOf(before).join("\n") : blocksOf(before).map((b) => b.text || "").join("\n")
   const afterSys = isChat(spec.protocol) ? partsOf(after).join("\n") : blocksOf(after).map((b) => b.text || "").join("\n")
-  console.log(`\n[${agent}] ${spec.protocol}  ${spec.sample}`)
+  console.log(`\n[${agent}] ${spec.protocol}  ${path.relative(ROOT, spec.sample)}`)
   console.log(`  system ${beforeSys.length} → ${afterSys.length} 字符`)
   console.log(`  official ${officialText(before, spec.protocol, rules).trim().length} → ${officialText(after, spec.protocol, rules).trim().length} 字符`)
   for (const l of lines) console.log(`  ${l}`)
 }
 
 for (const agent of which === "both" ? ["claude", "pi"] : [which]) runAgent(agent)
-console.log("\nnext: node check-docs.mjs")
+console.log("\nnext: node scripts/check-docs.mjs")

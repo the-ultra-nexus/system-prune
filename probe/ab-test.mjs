@@ -1,5 +1,5 @@
 // A/B v2：工具选择 + 回复质量 + 缓存命中，每个用例跑 N 次。
-// 用法：node ab-test.mjs [claude|pi|both] [--runs=5]
+// 用法：node probe/ab-test.mjs [claude|pi|both] [--runs=5]
 // 每轮临时把插件 options 的 agents 名单清空（等于关掉中间件），跑完恢复。别在别的会话忙的时候跑。
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"

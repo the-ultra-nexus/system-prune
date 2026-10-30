@@ -1,19 +1,19 @@
 // 按 agent 各跑一遍真实形状的请求，看最终落到 API 上的 system。
-// 用法：node verify.mjs [claude|pi] [request.json]
+// 用法：node scripts/verify.mjs [claude|pi] [request.json]
 import fs from "node:fs"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
+import { RULES, SAMPLES } from "./paths.mjs"
 
 const agent = process.argv[2] || "claude"
-const rulesFile = `rules.${agent}.json`
-const rules = JSON.parse(fs.readFileSync(rulesFile, "utf8"))
+const rules = JSON.parse(fs.readFileSync(RULES[agent], "utf8"))
 
 let body
 if (agent === "pi") {
   // pi 走 chat 协议；原生提示词存成样本，拼一条最小请求。
-  const native = fs.readFileSync("pi-native.system.txt", "utf8")
+  const native = fs.readFileSync(SAMPLES.pi, "utf8")
   body = { model: "pi", messages: [{ role: "system", content: native }, { role: "user", content: "hi" }] }
 } else {
-  body = JSON.parse(fs.readFileSync(process.argv[3] || "interactive-main.request.json", "utf8"))
+  body = JSON.parse(fs.readFileSync(process.argv[3] || SAMPLES.main, "utf8"))
 }
 const protocol = agent === "pi" ? "chat" : "anthropic"
 const nativeText = agent === "pi"

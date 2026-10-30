@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
 
 const rules = {
   dropBlocksContaining: ["DROP-ME"],

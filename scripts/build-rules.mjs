@@ -1,24 +1,24 @@
 // 生成每个 agent 一份规则，并把它们作为 profiles 烤进中间件本体。
-//   rules.<agent>.json     —— 该 agent 的删/改（含人设，--with-prompt 时）
-//   persona.payload.json   —— middleware-system-prompt 格式的人设载荷（备用）
-//   system-prune.middleware.js 的 >>> baked-rules 块 —— 通用规则 + profiles
+//   rules/rules.<agent>.json     —— 该 agent 的删/改（含人设，--with-prompt 时）
+//   rules/persona.payload.json   —— middleware-system-prompt 格式的人设载荷（备用）
+//   src/system-prune.middleware.js 的 >>> baked-rules 块 —— 通用规则 + profiles
 //
 // 每个 agent 的删/改字面量必须对准它自己的原生提示词：
-//   claude → Claude Code 官方 system（interactive-main.request.json）
-//   pi     → pi 原生 preamble/rules（pi-native.system.txt）
+//   claude → Claude Code 官方 system（samples/interactive-main.request.json）
+//   pi     → pi 原生 preamble/rules（samples/pi-native.system.txt）
 //
-// 用法：node build-rules.mjs [--with-prompt] [--allow-miss] [--allow-residue]
+// 用法：node scripts/build-rules.mjs [--with-prompt] [--allow-miss] [--allow-residue]
 //      两道闸：命中不了样本（miss）或改完仍残留身份句/硬禁令，任一命中就退出码 1。
 //      两个 --allow-* 只用于临时排查，别提交带这些开关的全绿假象。
 import fs from "node:fs"
-import { onRequest } from "./system-prune.middleware.js"
+import { onRequest } from "../src/system-prune.middleware.js"
+import { ENABLED_AGENTS, MIDDLEWARE, PERSONAS, PERSONA_PAYLOAD, RESIDUE_ALLOWLIST, RULES, SAMPLES } from "./paths.mjs"
 
-const OUT_PERSONA = "persona.payload.json"
 const argv = process.argv.slice(2)
 const withPrompt = argv.includes("--with-prompt")
 
-const claudePersona = fs.readFileSync(new URL("persona.claude.zh.md", import.meta.url), "utf8").trim()
-const piPersona = fs.readFileSync(new URL("persona.pi.zh.md", import.meta.url), "utf8").trim()
+const claudePersona = fs.readFileSync(PERSONAS.claude, "utf8").trim()
+const piPersona = fs.readFileSync(PERSONAS.pi, "utf8").trim()
 
 // 删除：整块 / 整段 / 整行。对应 identity.js 里的 harness:identity、mnemon、品牌句。
 const dropBlocksContaining = [
@@ -128,13 +128,12 @@ const withoutAgents = (rules) => {
 const PROFILES = { claude: withoutAgents(claudeRules), pi: withoutAgents(piRules) }
 
 // agents 是开关，不是排除表：名单里没有的 agent 一个字节都不动；空名单 = 谁都不动。
-// 名单存在 enabled-agents.json（跟着仓库走，app 回写 plugins.json 冲不掉），app 里也能临时改。
-const enabledFile = new URL("enabled-agents.json", import.meta.url)
+// 名单存在 config/enabled-agents.json（跟着仓库走，app 回写 plugins.json 冲不掉），app 里也能临时改。
 let enabled = []
 try {
-  enabled = JSON.parse(fs.readFileSync(enabledFile, "utf8"))
+  enabled = JSON.parse(fs.readFileSync(ENABLED_AGENTS, "utf8"))
 } catch {
-  console.log("[warn] 读不到 enabled-agents.json，按空名单（谁都改不了）")
+  console.log("[warn] 读不到 config/enabled-agents.json，按空名单（谁都改不了）")
 }
 if (!Array.isArray(enabled)) enabled = []
 enabled = enabled.filter((name) => typeof name === "string" && name)
@@ -147,25 +146,24 @@ const baked = {
   profiles: PROFILES,
 }
 
-fs.writeFileSync(new URL("rules.claude.json", import.meta.url), `${JSON.stringify(claudeRules, null, 2)}\n`)
-fs.writeFileSync(new URL("rules.pi.json", import.meta.url), `${JSON.stringify(piRules, null, 2)}\n`)
-fs.writeFileSync(new URL(OUT_PERSONA, import.meta.url), `${JSON.stringify({ agents: ["claude"], override: true, position: "prepend", system_prompt: claudePersona }, null, 2)}\n`)
+fs.writeFileSync(RULES.claude, `${JSON.stringify(claudeRules, null, 2)}\n`)
+fs.writeFileSync(RULES.pi, `${JSON.stringify(piRules, null, 2)}\n`)
+fs.writeFileSync(PERSONA_PAYLOAD, `${JSON.stringify({ agents: ["claude"], override: true, position: "prepend", system_prompt: claudePersona }, null, 2)}\n`)
 
 // 把规则烤进中间件本体：magpie app 重启时会用内存状态回写 plugins.json，CLI 设的 options 会被冲掉。
 // 文件是唯一真源，options 只当临时覆盖。
 if (withPrompt) {
-  const MW = new URL("system-prune.middleware.js", import.meta.url)
-  const src = fs.readFileSync(MW, "utf8")
+  const src = fs.readFileSync(MIDDLEWARE, "utf8")
   const block = `// >>> baked-rules (由 build-rules.mjs 生成，别手改)\nconst BAKED_RULES = ${JSON.stringify(baked, null, 2)}\n// <<< baked-rules`
   const re = /\/\/ >>> baked-rules[\s\S]*?\/\/ <<< baked-rules/
   if (!re.test(src)) throw new Error("中间件里找不到 baked-rules 标记，别继续")
-  fs.writeFileSync(MW, src.replace(re, () => block))
+  fs.writeFileSync(MIDDLEWARE, src.replace(re, () => block))
 }
 
 // ── 校验：每条字面量必须逐字命中该 agent 的原生提示词 ──────────────────────
 
 function textOfRequest(file) {
-  const body = JSON.parse(fs.readFileSync(new URL(file, import.meta.url), "utf8"))
+  const body = JSON.parse(fs.readFileSync(file, "utf8"))
   const parts = []
   if (Array.isArray(body.system)) parts.push(body.system.map((b) => b.text || "").join("\n"))
   else parts.push(String(body.system || ""))
@@ -205,8 +203,8 @@ function check(rules, texts, label) {
 
 let miss = 0
 // 两种入口都验：交互式 CLI 快照 + SDK/`claude -p` 快照，字面量取并集。
-miss += check(claudeRules, ["interactive-main.request.json", "claude-sdk.request.json"].map(textOfRequest), "claude")
-miss += check(piRules, [fs.readFileSync(new URL("pi-native.system.txt", import.meta.url), "utf8")], "pi")
+miss += check(claudeRules, [SAMPLES.main, SAMPLES.sdk].map(textOfRequest), "claude")
+miss += check(piRules, [fs.readFileSync(SAMPLES.pi, "utf8")], "pi")
 
 
 // ── 残留扫描：改完之后还有没有「像身份句/硬禁令」的句子漏在上下文里 ──────────
@@ -225,7 +223,7 @@ const IDENTITY_PATTERNS = [
 
 function allowlist() {
   try {
-    return fs.readFileSync(new URL("residue-allowlist.txt", import.meta.url), "utf8")
+    return fs.readFileSync(RESIDUE_ALLOWLIST, "utf8")
       .split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
   } catch { return [] }
 }
@@ -239,22 +237,22 @@ function residueOf(body, rules, protocol, agent) {
   return persona ? out.split(persona).join("") : out
 }
 
-const SAMPLES = [
-  ["interactive-main.request.json", "claude", "anthropic"],
-  ["claude-sdk.request.json", "claude", "anthropic"],
-  ["pi-native.system.txt", "pi", "chat"],
+const SAMPLES_LIST = [
+  [SAMPLES.main, "claude", "anthropic"],
+  [SAMPLES.sdk, "claude", "anthropic"],
+  [SAMPLES.pi, "pi", "chat"],
 ]
 
 function bodyOf(file, agent, protocol) {
   if (protocol === "chat") {
-    return { model: "x", messages: [{ role: "system", content: fs.readFileSync(new URL(file, import.meta.url), "utf8") }, { role: "user", content: "x" }] }
+    return { model: "x", messages: [{ role: "system", content: fs.readFileSync(file, "utf8") }, { role: "user", content: "x" }] }
   }
-  return JSON.parse(fs.readFileSync(new URL(file, import.meta.url), "utf8"))
+  return JSON.parse(fs.readFileSync(file, "utf8"))
 }
 
 const allow = allowlist()
 const leftovers = []
-for (const [file, agent, protocol] of SAMPLES) {
+for (const [file, agent, protocol] of SAMPLES_LIST) {
   const rules = PROFILES[agent]
   const text = residueOf(bodyOf(file, agent, protocol), rules, protocol, agent)
   const seen = new Set()
@@ -276,7 +274,7 @@ if (leftovers.length) {
   console.log("  要么加规则删/改掉，要么加进 residue-allowlist.txt（一行一个子串）")
 }
 
-console.log(`rules -> rules.claude.json / rules.pi.json   claude 人设 ${claudePersona.length} 字   pi 人设 ${piPersona.length} 字   miss=${miss}`)
+console.log(`rules -> rules/rules.claude.json / rules/rules.pi.json   claude 人设 ${claudePersona.length} 字   pi 人设 ${piPersona.length} 字   miss=${miss}`)
 console.log(`agents -> ${enabled.length ? enabled.join(", ") : "（空：谁都不改）"}`)
 if (miss > 0 && !process.argv.includes("--allow-miss")) {
   console.log("! 有规则打不到样本，用 --allow-miss 强行通过")
