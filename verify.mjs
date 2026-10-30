@@ -39,6 +39,6 @@ const identity = agent === "pi"
   : ["Anthropic's official CLI for Claude", "You are Claude Code", "Refuse requests for destructive"]
 for (const s of identity) console.log(`  gone ${JSON.stringify(s.slice(0, 46))}: ${!officialText.includes(s)}`)
 const keep = agent === "pi"
-  ? ["<rules>", "Be concise in your responses", "<docs>"]
+  ? ["<rules>", "Be concise in your responses", "<docs>", "Use bash for file operations like ls, rg, find"]
   : ["# Memory", "you don't need to wrap up early"]
 for (const s of keep) console.log(`  kept ${JSON.stringify(s)}: ${officialText.includes(s)}`)

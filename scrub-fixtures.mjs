@@ -4,7 +4,7 @@ import fs from "node:fs"
 
 const REQUESTS = ["interactive-main.request.json", "claude-sdk.request.json", "interactive-title.request.json"]
 const TEXTUAL = ["live.claude.md"]
-const DIRS = ["diff"]
+const DIRS = ["diff"]   // 递归扫子目录（diff/claude、diff/pi）
 
 let touched = 0
 
@@ -33,8 +33,13 @@ for (const file of TEXTUAL) {
 }
 for (const dir of DIRS) {
   if (!fs.existsSync(dir)) continue
-  for (const name of fs.readdirSync(dir)) {
-    if (name.endsWith(".md") || name.endsWith(".diff")) scrubText(`${dir}/${name}`)
+  const walk = (d) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = `${d}/${entry.name}`
+      if (entry.isDirectory()) walk(p)
+      else if (entry.name.endsWith(".md") || entry.name.endsWith(".diff")) scrubText(p)
+    }
   }
+  walk(dir)
 }
 console.log(`scrubbed ${touched} file(s)`)

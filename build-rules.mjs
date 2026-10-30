@@ -7,8 +7,9 @@
 //   claude → Claude Code 官方 system（interactive-main.request.json）
 //   pi     → pi 原生 preamble/rules（pi-native.system.txt）
 //
-// 用法：node build-rules.mjs [--with-prompt] [--allow-miss]
-//      命不中就退出码 1：上游提示词一改，规则就成了哑弹。
+// 用法：node build-rules.mjs [--with-prompt] [--allow-miss] [--allow-residue]
+//      两道闸：命中不了样本（miss）或改完仍残留身份句/硬禁令，任一命中就退出码 1。
+//      两个 --allow-* 只用于临时排查，别提交带这些开关的全绿假象。
 import fs from "node:fs"
 import { onRequest } from "./system-prune.middleware.js"
 
@@ -110,8 +111,11 @@ const piRules = {
   cuts: [],
   replacements: [
     [PI_PREAMBLE, "You work inside pi, a coding agent harness: you read files, run commands, edit code, and write new files."],
-    // 没有 grep/find/ls 时 pi 会塞这条"用 bash 做文件操作"，它会让模型拿 bash 顶替 read/edit。
-    ["- Use bash for file operations like ls, rg, find", "- Use the dedicated tool when one fits: `read` to read a file, `edit` to change it, `write` to create it; `bash` for commands that have no dedicated tool"],
+    // 原生 <rules> 的 "Use bash for file operations like ls, rg, find" 不改。
+    // 2026-10-30 评估：pi 没有独立的 grep/find/ls 工具，“找”只能走 bash，所以它与
+    // “专用工具优先”在行为上等价；读/改/建优先 read/edit/write 由人设覆盖，不必在原生段里重复。
+    // 改写版会多 149 字符，并且 pi 工具集一变就得重新对样本。如需恢复改写，解开下面一行：
+    // ["- Use bash for file operations like ls, rg, find", "- Use the dedicated tool when one fits: `read` to read a file, `edit` to change it, `write` to create it; `bash` for commands that have no dedicated tool"],
   ],
   dropLinesMatching: [],
 }

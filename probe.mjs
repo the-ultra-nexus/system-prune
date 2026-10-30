@@ -4,7 +4,9 @@
 //   node probe.mjs selfcheck
 //   node probe.mjs build [--arms A,B,E] [--probes P1,P2,P3,P4] [--out /tmp/probe/requests]
 //   node probe.mjs run   [--arms A,B,E] [--probes P1,P2] [--runs 5] [--randomize] [--gateway override|direct]
-//   node probe.mjs score [--in /tmp/probe/runs.jsonl]
+//   node probe.mjs score [--out /tmp/probe/runs.jsonl]
+//   node probe.mjs restore                       # 把 options 恢复成 run 之前存下的基线
+// 默认 ARMS=A,B,E；F 只压人设里的同义说明，用于归因。OUT 默认 /tmp/probe/runs.jsonl。
 // A = 现状（段被切）；B = 原文按原位插回；E = A 再把工具描述/schema/人设里的三份同义说明压掉（灵敏度对照）。
 import fs from "node:fs"
 import path from "node:path"
@@ -114,6 +116,8 @@ function buildArms() {
   const j = B2.indexOf(SEG_END, i)
   const seg = i !== -1 && j !== -1 ? B2.slice(i, j + SEG_END.length) : ""
   if (!seg) notes.push("SEG 未找到，B 臂不可用")
+  // cuts 为空时 A 本身就会带着这段，A/B 变成同一份，消融就没意义了。
+  else if (A2.includes(SEG_START)) notes.push("A 已含目标段（cuts 为空）：A/B 无差异，先把该段放回 cuts 再跑消融")
   const arms = { A }
   if (seg) arms.B = B
   if (ARMS.includes("E") && seg) arms.E = armE(A, notes)
@@ -125,6 +129,7 @@ function buildArms() {
 
 function selfcheck() {
   const { arms, seg, notes } = buildArms()
+  const A2 = arms.A ? systemText(arms.A) : ""
   const problems = [...notes]
   const A = arms.A
   const B = arms.B
@@ -135,7 +140,7 @@ function selfcheck() {
     if (at.length !== bt.length) problems.push(`system 块数不同 ${at.length} vs ${bt.length}`)
     if (at[0] !== bt[0]) problems.push("block 0 不同")
     if (at[1] !== bt[1]) problems.push("block 1（人设）不同")
-    if (at[2] + "\n" + seg !== bt[2] && at[2] + seg !== bt[2]) problems.push("block 2 不是 A + SEG")
+    if (!A2.includes(SEG_START) && at[2] + "\n" + seg !== bt[2] && at[2] + seg !== bt[2]) problems.push("block 2 不是 A + SEG")
     for (let k = 0; k < Math.min(A.system.length, B.system.length); k++) {
       if (JSON.stringify(A.system[k].cache_control) !== JSON.stringify(B.system[k].cache_control)) problems.push(`block ${k} cache_control 不同`)
     }
@@ -147,7 +152,7 @@ function selfcheck() {
   if (arms.E) {
     const dropped = systemText(armE(A, []))
 
-    if (dropped.includes(SEG_START)) problems.push("E 仍含 system 段")
+    if (!A2.includes(SEG_START) && dropped.includes(SEG_START)) problems.push("E 仍含 system 段")
   }
   console.log(`臂: ${Object.keys(arms).join(",")}`)
   if (problems.length) {
