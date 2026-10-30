@@ -1,1 +1,0 @@
-x-anthropic-billing-header: cc_version=2.1.312.9d5; cc_entrypoint=cli;
