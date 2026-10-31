@@ -208,7 +208,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>
 
 reply with exactly: ok
 
-<!-- messages[1] role=system 14437 chars -->
+<!-- messages[1] role=system 14487 chars -->
 
 # Environment
 You have been invoked in the following environment: 
@@ -218,6 +218,8 @@ You have been invoked in the following environment:
  - Shell: zsh
  - OS Version: Darwin 22.6.0
  - Downloaded files and extracted archives are working material: put each in its own new, empty directory, keep scripts you write in a different directory, and pass paths as arguments instead of running an interpreter or build tool from inside it. Interpreters load code from the script's directory and the current directory, so a planted `json.py` runs on `import json`. Run any Python that reads them with `-I`. This does not apply to code the user asked you to build or run.
+
+You are powered by the model hw/group/group[1m].
 
 The following deferred tools are now available via ToolSearch. Their schemas are NOT loaded — calling them directly will fail with InputValidationError. Use ToolSearch with query "select:<name>[,<name>...]" to load tool schemas before calling them:
 ArtifactComments

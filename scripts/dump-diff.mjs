@@ -2,14 +2,14 @@
 // 用法：node scripts/dump-diff.mjs [claude|pi|both] [rules.json] [request.json]
 //   node scripts/dump-diff.mjs                # 两个 agent 都出
 //   node scripts/dump-diff.mjs pi             # 只出 pi
-//   node scripts/dump-diff.mjs claude rules/rules.claude.json samples/claude-sdk.request.json   # 换快照
+//   node scripts/dump-diff.mjs claude rules/rules.json samples/claude-sdk.request.json   # 换快照
 // claude 走 anthropic 形状（真实请求快照），pi 走 chat 形状（原生提示词拼最小请求）。
 // docs/diff/*.diff 由本脚本直接生成，不用再手工跑 diff -u。
 import fs from "node:fs"
 import path from "node:path"
 import { execFileSync } from "node:child_process"
 import { onRequest } from "../src/system-prune.middleware.js"
-import { DIFF_DIR, ROOT, RULES, SAMPLES } from "./paths.mjs"
+import { DIFF_DIR, ROOT, RULES_FILE, SAMPLES } from "./paths.mjs"
 
 const argv = process.argv.slice(2)
 const which = ["claude", "pi", "both"].includes(argv[0]) ? argv[0] : "both"
@@ -91,7 +91,7 @@ function writeDiff(a, b, out) {
 
 function runAgent(agent) {
   const spec = AGENTS[agent]
-  const rules = JSON.parse(fs.readFileSync(RULES[agent], "utf8"))
+  const rules = JSON.parse(fs.readFileSync(RULES_FILE, "utf8"))
   const before = spec.body(spec.sample)
   const after = clone(before)
   onRequest(after, { protocol: spec.protocol, agent, options: rules })

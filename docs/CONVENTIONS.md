@@ -12,10 +12,10 @@
 | 插件标识（脚本里） | `magpie plugin list --json` 的 `middleware` key，即安装时的绝对路径 | 自己拼路径（装机位置一变就失效） |
 | 安装 | `magpie plugin add ~/projects/opensource/system-prune` | 拿文件名当插件名 |
 | 生成脚本 | `scripts/build-rules.mjs` | `build-claude-rules.mjs`（不存在） |
-| 人设源 | `persona/persona.<agent>.zh.md` | `claude-system-prompt.zh.md`（已改名） |
+| 人设源 | `prompt/persona*.md`（恰好一份，`## Routing` 之前）/ `prompt/rules*.md`（之后，可多份） | `prompt/vars.json`（已删除；值直接写在原文）、`prompt/persona.<agent>.zh.md`（已删除；源文件共享） |
 | 探针结果文件参数 | `--out` | `--in`（不存在） |
 
-magpie 两种都收：短名是目录名，注册 key 是安装时的绝对路径。`probe/probe.mjs` / `probe/ab-test.mjs` 从 `plugin list --json` 取 key 再调 `options`，文档里的手敲命令统一写短名。文件名永远不是插件标识。
+magpie 两种都收：短名是目录名，注册 key 是安装时的绝对路径。`probe/ab-test.mjs` 从 `plugin list --json` 取 key 再调 `options`，文档里的手敲命令统一写短名。文件名永远不是插件标识。
 
 文档里出现的每条 `node <file>.mjs` 必须当场可跑：文件在仓库里、参数是代码认的、子命令在 `switch` 里。
 
@@ -31,24 +31,24 @@ magpie 两种都收：短名是目录名，注册 key 是安装时的绝对路�
 
 - 会随改动漂的数字（快照长度、人设字数、system 字符数）**不写进规范句**；必须写时带上「当前快照」字样，让人知道要去重测。
 - 实验结论写全四件：臂、样本量、统计口径、日期。少一样就是传闻。
-- 写「必过」「一定」「等价」之前先跑一遍。`selfcheck` 当时就有 FAIL 的可能——`cuts` 为空时 A/B 同源，写「必过」是假话。
+- 写「必过」「一定」「等价」之前先跑一遍。旧探针的 `selfcheck` 一度因 `cuts` 为空而必 FAIL；那套消融脚本已删除，别再引用它的结论当现行行为。
 
 ## 四、生成物不手改
 
-`rules/rules.<agent>.json`、`rules/persona.payload.json`、`src/system-prune.middleware.js` 的 `>>> baked-rules` 块、`docs/diff/` 下的 before/after 全部由脚本产出。改源头再重跑，别在产物上打补丁。
+`rules/rules.json`、`rules/persona.payload.json`、`src/system-prune.middleware.js` 的 `>>> baked-rules` 块、`docs/diff/` 下的 before/after、`docs/cases/`（本地生成，不进仓库）全部由脚本产出。改源头再重跑，别在产物上打补丁。`rules/rules.json` 里的 `prependBlocks` 是人设 + 全部规则块，只给 verify / dump-diff 当离线完整规则集；运行时按 `ruleFiles` 从 `ruleBlocks` 里选一份。
 
-`docs/diff/<agent>/` 下的 before/after 与 `.diff` 全部由 `scripts/dump-diff.mjs` 产出（它自己跑 `diff -u`，退出码 1 = 有差异属正常）。人设字面量靠 `rules/rules.<agent>.json` 的 `prependBlocks` 剔除，所以先 build 再 dump。
+`docs/diff/<agent>/` 下的 before/after 与 `.diff` 全部由 `scripts/dump-diff.mjs` 产出（它自己跑 `diff -u`，退出码 1 = 有差异属正常）。`docs/cases/`（本地生成）由 `scripts/export-cases.mjs` 产出，按 persona × official × ruleFiles 的 12 种组合各跑一遍。人设与规则字面量靠 `rules/rules.json` 的 `prependBlocks` 逐块剔除，所以先 build 再 dump / export。
 
 ## 五、命令块要与代码同源
 
-文档里的命令块按「能贴进终端就跑」写，不做伪代码。涉及子命令的（`probe/probe.mjs plan|selfcheck|build|run|score|restore`）由脚本比对代码里的 `cmd === "..."` 集合，文档多写一个不存在的子命令就报错。
+文档里的命令块按「能贴进终端就跑」写，不做伪代码。`check-docs.mjs` 会断言 `node <file>.mjs` 指向的脚本存在、路径正确。
 
 ## 六、改完的验证链
 
 ```bash
-node scripts/build-rules.mjs --with-prompt   # miss 必须 0，残留必须空
-node test/test.mjs                           # 21 条
-node scripts/verify.mjs claude
+node scripts/build-rules.mjs --with-prompt   # 只烤块，不再校验官方字面量
+node test/test.mjs                           # 27 条
+node scripts/verify.mjs claude               # 人设注入 + 冲突点替换（含 Environment）
 node scripts/verify.mjs pi
 node scripts/show-rules.mjs
 node scripts/check-docs.mjs                  # 本文件的可机检条款

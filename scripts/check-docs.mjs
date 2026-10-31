@@ -90,6 +90,8 @@ try {
 if (tracked.length) {
   for (const f of tracked) {
     if (EXEMPT.has(f)) continue
+    // 工作区已删除/改名、还没提交时，git ls-files 仍会列出旧路径；别拿它要求文件表登记。
+    if (!exists(f)) continue
     if (!covered(f)) problems.push(`README.md 文件表漏了已入库文件 ${f}`)
   }
   // 表里点名、但仓库里不存在的路径（本地文件除外）也算漂了。
@@ -106,24 +108,6 @@ for (const file of ["README.md", "CLAUDE.md", "docs/CONVENTIONS.md"]) {
   for (const m of docs[file].matchAll(/(\d+)\s*条(?:中间件行为)?单测/g)) {
     if (Number(m[1]) !== caseCount) {
       problems.push(`${file}: 写了 ${m[1]} 条单测，test/test.mjs 实际 ${caseCount} 条`)
-    }
-  }
-}
-
-// ── 6. probe.mjs 的子命令必须与代码里的 switch 一致 ────────────────────
-const probeCmds = new Set((read("probe/probe.mjs").match(/cmd === "([a-z-]+)"/g) || [])
-  .map((s) => s.replace(/cmd === "|"/g, "")))
-for (const [file, text] of Object.entries(docs)) {
-  for (const m of text.matchAll(/probe\.mjs\s+([a-z-]+)/g)) {
-    if (!probeCmds.has(m[1])) {
-      problems.push(`${file}: probe.mjs 没有子命令 "${m[1]}"（有：${[...probeCmds].join(", ")}）`)
-    }
-  }
-  // 文件表里那一串反引号子命令
-  const listed = text.match(/探针 CLI：(.+?)，/)
-  if (listed) {
-    for (const m of listed[1].matchAll(/`([a-z-]+)`/g)) {
-      if (!probeCmds.has(m[1])) problems.push(`${file}: 探针 CLI 列出的 "${m[1]}" 代码里不存在`)
     }
   }
 }

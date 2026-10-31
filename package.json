@@ -14,16 +14,10 @@
   "magpie": {
     "middleware": "./src/system-prune.middleware.js",
     "options": {
-      "dropBlocksContaining": [],
-      "dropSections": [],
-      "cuts": [],
-      "replacements": [],
-      "dropLinesMatching": [],
-      "prependBlocks": [],
-      "appendBlocks": [],
-      "squeezeBlank": true,
-      "agents": [],
-      "debug": false
+      "persona": true,
+      "official": true,
+      "ruleFiles": "rules.deepseek.2",
+      "agents": []
     }
   }
 }

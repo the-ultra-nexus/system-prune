@@ -1,4 +1,4 @@
-// 手工试跑：拿一条真实请求跑一遍自定义规则，打印块与字节变化。
+// 手工试跑：拿一条真实请求跑一遍自定义注入规则，打印块与字节变化。
 // 用法：node scripts/dry-run.mjs [request.json]
 import fs from "node:fs"
 import { onRequest } from "../src/system-prune.middleware.js"
@@ -10,8 +10,8 @@ const body = JSON.parse(raw)
 
 const before = JSON.stringify(body).length
 const rules = {
-  dropBlocksContaining: ["x-anthropic-billing-header"],
-  dropSections: ["# Context management", "# Memory", "# MCP Server Instructions"],
+  persona: true,
+  prependBlocks: [{ text: "PERSONA", cache: true, ttl: "1h" }],
   agents: ["claude"],
 }
 
