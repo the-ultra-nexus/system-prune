@@ -47,7 +47,7 @@ magpie 两种都收：短名是目录名，注册 key 是安装时的绝对路�
 
 ```bash
 node scripts/build-rules.mjs --with-prompt   # 只烤块，不再校验官方字面量
-node test/test.mjs                           # 27 条
+node test/test.mjs                           # 28 条
 node scripts/verify.mjs claude               # 人设注入 + 冲突点替换（含 Environment）
 node scripts/verify.mjs pi
 node scripts/show-rules.mjs

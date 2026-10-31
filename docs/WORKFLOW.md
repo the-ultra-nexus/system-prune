@@ -16,7 +16,7 @@ pgrep -fl plugin-host    # 换前后各看一眼，pid 没变就是没换成
 
 只改注释、不动 `BAKED_RULES` 和导出时可以不换，但在收尾里说明跳过原因。
 
-开关默认：`persona: true` / `official: true` / `ruleFiles: "rules.deepseek.2"`——持久值在 `config/switches.json`，build 时烤进 `BAKED_RULES`；options 同名键只当临时覆盖。`rules/rules.json` 是离线完整规则集，只给 verify / dump-diff / dry-run 用，不进网关运行时。
+开关默认：`persona: true` / `official: true` / `ruleFiles: "rules.claude.1"` / `rulePosition: "before"`——持久值在 `config/switches.json`，build 时烤进 `BAKED_RULES`；options 同名键只当临时覆盖。`rules/rules.json` 是离线完整规则集，只给 verify / dump-diff / dry-run 用，不进网关运行时。
 
 ## 1. 改人设
 
@@ -25,15 +25,15 @@ pgrep -fl plugin-host    # 换前后各看一眼，pid 没变就是没换成
 ```bash
 # 1) 改 prompt/persona*.md（## Routing 之前）和/或 prompt/rules*.md（之后，可多份）；值直接写原文
 node scripts/build-rules.mjs --with-prompt   # 打印人设字数与规则块数；miss 必须 0
-node test/test.mjs                           # 27 条
+node test/test.mjs                           # 28 条
 node scripts/verify.mjs claude               # 看「人设注入: 是」
 node scripts/verify.mjs pi
-node scripts/show-rules.mjs                  # 烤入默认：人设开、official 开、ruleFiles 选中哪份，人设/规则块字数/计费头
+node scripts/show-rules.mjs                  # 烤入默认：开关、块顺序、人设/规则块字数、计费头
 node scripts/check-docs.mjs
 magpie plugin off system-prune && magpie plugin on system-prune
 ```
 
-通过标准：`verify` 两个 agent 都是「人设注入：是」「官方身份残留：否」「冲突点已替换：是」「Environment 随 official：是」；`show-rules` 不带参数时是「persona=on」、规则块 1 份、计费头在最前。`build` 打印的人设字数/规则块数变了，是这一节唯一预期的数字变化。
+通过标准：`verify` 两个 agent 都是「人设注入：是」「官方身份残留：否」「冲突点已替换：是」「Environment 随 official：是」；`show-rules` 不带参数时是「persona=on」、规则块 1 份、块顺序与 `rulePosition` 一致、计费头在最前。`build` 打印的人设字数/规则块数变了，是这一节唯一预期的数字变化。
 
 失败：`人设注入: 否` 说明 `prependBlocks` 空了或没跑 `--with-prompt`（`scripts/verify.mjs` 读的是 `rules/rules.<agent>.json`，不是中间件本体）。
 
@@ -47,7 +47,7 @@ node scripts/build-rules.mjs --with-prompt
 node test/test.mjs
 node scripts/verify.mjs claude
 node scripts/verify.mjs pi
-node scripts/show-rules.mjs                  # 看烤入的 ruleFiles 与规则块数
+node scripts/show-rules.mjs                  # 看烤入的规则块数、块顺序与 rulePosition 是否对得上
 node scripts/show-rules.mjs rules/rules.json # 看离线完整规则集（人设 + 全部规则）
 node scripts/check-docs.mjs
 magpie plugin off system-prune && magpie plugin on system-prune
@@ -55,7 +55,7 @@ magpie plugin off system-prune && magpie plugin on system-prune
 
 通过标准：`verify` 两个 agent 都是「人设注入：是」「官方身份残留：否」「冲突点已替换：是」「Environment 随 official：是」；`show-rules` 的「规则块」跟着 `ruleFiles` 变（`""` = 0 份）；`build` 打印的规则块数增加。
 
-换规则用 option 即可，不用改文件：`magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1"}'`。持久默认改 `config/switches.json` 再 build。
+换规则用 option 即可，不用改文件：`magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1"}'`。要让规则块排在人设前面，同时设 `"rulePosition":"before"`；切回 deepseek 规则时记得改回 `"after"`。持久默认改 `config/switches.json` 再 build。
 
 ### 官方冲突点
 
@@ -100,7 +100,7 @@ node scripts/check-docs.mjs
 |---|---|
 | 规则/人设 | `git diff` 看清，再 `git checkout -- <file>`（不自动 commit 也不自动 revert，要人点头） |
 | 烤入块 | 改真源后重跑 `node scripts/build-rules.mjs --with-prompt`，不要反转产物 |
-| options | 手动设回 `magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.deepseek.2"}'` |
+| options | 手动设回 `magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.claude.1","rulePosition":"before"}'` |
 | 旧人设载荷 | `local/evi-backup.json`（本地文件，不进仓库） |
 | 网关进程 | `magpie plugin off system-prune && magpie plugin on system-prune` |
 
@@ -113,6 +113,7 @@ node scripts/check-docs.mjs
 | `网关旁路被回写，批次中止` | 同上，跑到一半被冲 | 同上，用 `--resume` 续 |
 | `人设注入: 否` | 没跑 `--with-prompt`，或 `prependBlocks` 空 | 重跑 build，看 `rules/rules.json` |
 | 规则块没出现 | `ruleFiles` 为空串、id 写错，或 build 没烤 `ruleBlocks` | 核对 `prompt/rules*.md` 去掉 `.md` 的 id |
+| 块顺序不对 | `rulePosition` 与预期不符（当前默认 `before`） | 看 `show-rules` 的「块顺序」，改 `config/switches.json` 或 options |
 | `恢复 options 失败` | CLI 写入被 app 回写顶掉 | 手动 `magpie plugin options` 再试 |
 
 ## 8. 已知坑

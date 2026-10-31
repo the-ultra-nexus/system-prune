@@ -1,5 +1,6 @@
 {
   "persona": true,
   "official": true,
-  "ruleFiles": "rules.deepseek.2"
+  "ruleFiles": "rules.claude.1",
+  "rulePosition": "before"
 }

@@ -39,6 +39,7 @@ const officialReplacements = official.replacements
 const fullRules = {
   persona: true,
   ruleFiles: "",
+  rulePosition: "after",
   official: true,
   officialDropBlocks,
   officialDropLines,
@@ -59,17 +60,19 @@ try {
 if (!Array.isArray(enabled)) enabled = []
 enabled = enabled.filter((name) => typeof name === "string" && name)
 
-// 两个开关的持久值存在 config/switches.json，build 时烤进 baked 顶层。
+// 开关的持久值存在 config/switches.json，build 时烤进 baked 顶层。
 // options 里同名键只当临时覆盖；app 重启回写 plugins.json 也不会改掉这里的默认。
+// 这里的回退值和 switches.json 当前默认保持一致：读不到配置时也按 claude.1 + 规则前置。
 const ruleIds = ["", ...ruleBlocks.map((b) => b.id)]
-let switches = { persona: true, official: true, ruleFiles: "rules.deepseek.2" }
+let switches = { persona: true, official: true, ruleFiles: "rules.claude.1", rulePosition: "before" }
 try {
   const raw = JSON.parse(fs.readFileSync(SWITCHES, "utf8"))
   if (typeof raw.persona === "boolean") switches.persona = raw.persona
   if (typeof raw.official === "boolean") switches.official = raw.official
   if (typeof raw.ruleFiles === "string" && ruleIds.includes(raw.ruleFiles)) switches.ruleFiles = raw.ruleFiles
+  if (raw.rulePosition === "before" || raw.rulePosition === "after") switches.rulePosition = raw.rulePosition
 } catch {
-  console.log("[warn] 读不到 config/switches.json，按 persona=true / official=true / ruleFiles=\"rules.deepseek.2\"")
+  console.log("[warn] 读不到 config/switches.json，按 persona=true / official=true / ruleFiles=\"rules.claude.1\" / rulePosition=\"before\"")
 }
 
 const baked = {
@@ -77,6 +80,7 @@ const baked = {
   persona: switches.persona,
   official: switches.official,
   ruleFiles: switches.ruleFiles,
+  rulePosition: switches.rulePosition,
   officialDropBlocks,
   officialDropLines,
   officialReplacements,
@@ -97,5 +101,5 @@ if (withPrompt) {
 
 console.log(`rules -> rules/rules.json   人设 ${personaSource.length} 字   规则块 ${ruleBlocks.length} 份`)
 console.log(`agents -> ${enabled.length ? enabled.join(", ") : "（空：谁都不改）"}`)
-console.log(`switches -> persona=${switches.persona ? "on" : "off"} official=${switches.official ? "on" : "off"} ruleFiles=${JSON.stringify(switches.ruleFiles)}（config/switches.json）`)
+console.log(`switches -> persona=${switches.persona ? "on" : "off"} official=${switches.official ? "on" : "off"} ruleFiles=${JSON.stringify(switches.ruleFiles)} rulePosition=${switches.rulePosition}（config/switches.json）`)
 console.log(`rule files -> ${ruleFiles.join(", ")}`)

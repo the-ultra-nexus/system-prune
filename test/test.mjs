@@ -130,7 +130,7 @@ const persona = { text: "PERSONA", cache: true, ttl: "1h" }
 // 18. agents "*"：全部生效
 {
   const body = { system: [{ type: "text", text: "official" }] }
-  const opts = { agents: ["*"], prependBlocks: [{ text: "PERSONA" }] }
+  const opts = { agents: ["*"], prependBlocks: [{ text: "PERSONA" }], ruleFiles: "" }
   assert.equal(onRequest(body, { protocol: "anthropic", agent: "claude", options: opts }), body)
   assert.equal(body.system[0].text, "PERSONA")
 }
@@ -218,6 +218,14 @@ assert.equal(onRequest(null, ctx), undefined)
   const opts = { official: true, officialReplacements: [["OLD", "NEW"]] }
   assert.equal(run(body, opts), body)
   assert.equal(body.tools[0].description, "NEW")
+}
+
+// 28. rulePosition="before"：规则块排在人设块前
+{
+  const body = { system: [{ type: "text", text: "official" }] }
+  const opts = { rulePosition: "before", ruleFiles: "rules.a", ruleBlocks: [{ id: "rules.a", text: "A" }], prependBlocks: [persona] }
+  assert.equal(run(body, opts), body)
+  assert.deepEqual(body.system.map((b) => b.text), ["A", "PERSONA", "official"])
 }
 
 console.log("all tests passed")

@@ -1,6 +1,6 @@
 # system-prune
 
-magpie 网关中间件。在请求离开本机前重组 agent 的 system prompt：人设注入默认开，官方冲突点修正默认开，规则块默认加载主规则。人设与规则源不再分 agent（都跑「蓝汐 / Ryu」人设）；官方 prompt 的冲突句由 `official` 统一替换，`# Environment` 也在其中。
+magpie 网关中间件。在请求离开本机前重组 agent 的 system prompt：人设注入默认开，官方冲突点修正默认开，规则块默认加载主规则、默认排在人设之前。人设与规则源不再分 agent（都跑「蓝汐 / Ryu」人设）；官方 prompt 的冲突句由 `official` 统一替换，`# Environment` 也在其中。
 
 文档口径（名字怎么写、表怎么对、数字什么时候算数）见 `docs/CONVENTIONS.md`；能机检的条款由 `node scripts/check-docs.mjs` 断言。
 
@@ -10,7 +10,8 @@ magpie 网关中间件。在请求离开本机前重组 agent 的 system prompt�
 请求 → resolveSource(烤入通用 → options 逐键叠加) → agents 开关（没填就放行不改）
      → official 开关（默认开）→ 删身份块、替换冲突句（含 # Environment）
      → persona 开关（默认开）→ 人设块
-     → ruleFiles 选择（"" / "rules.deepseek.1" / "rules.deepseek.2"）→ 规则块（计费头之后）→ 上游
+     → ruleFiles 选择（"" / "rules.claude.1" / "rules.deepseek.1" / "rules.deepseek.2"）
+     → rulePosition（after 人设后 / before 人设前）→ 规则块（计费头之后）→ 上游
 ```
 
 协议按 `ctx.protocol` 分派，覆盖 `anthropic` / `chat` / `responses` / `gemini` 四种形状，其余直接放行。
@@ -24,20 +25,20 @@ magpie 网关中间件。在请求离开本机前重组 agent 的 system prompt�
 
 `agents` 是开关，不是排除表：**填了才改，不填不改**，`["*"]` 才是全部。
 
-`persona`（默认 `true`）只管人设块插不插；`official`（默认 `true`）管官方冲突块/行/替换表执不执行；`ruleFiles`（默认 `"rules.deepseek.2"`）是单选，`""` 不加载规则，`"rules.deepseek.1"` / `"rules.deepseek.2"` 只插对应那一份。三个开关在 `readRules` 合并后统一裁决，四个协议分支不各自判断。
+`persona`（默认 `true`）只管人设块插不插；`official`（默认 `true`）管官方冲突块/行/替换表执不执行；`ruleFiles`（默认 `"rules.claude.1"`）是单选，`""` 不加载规则，写哪个 id 就只插对应那一份；`rulePosition`（当前默认 `"before"`）决定规则块排在选中人设块的前面还是后面。这几个开关在 `readRules` 合并后统一裁决，四个协议分支不各自判断。
 
 | 层 | 位置 | 清空后 |
 |---|---|---|
 | 名单源 | `config/enabled-agents.json`（跟着仓库走） | build 时烤成空名单，谁都不改 |
-| 开关源 | `config/switches.json`（跟着仓库走） | build 时烤成 `persona` / `official` / `ruleFiles` 默认值 |
+| 开关源 | `config/switches.json`（跟着仓库走） | build 时烤成 `persona` / `official` / `ruleFiles` / `rulePosition` 默认值 |
 | 烤入 | `BAKED_RULES.agents` | 同上 |
 | 运行时覆盖 | magpie 插件页 / `magpie plugin options` | `{"agents":[]}` 立刻关掉，重启也不丢（写回 `plugins.json`） |
 
 ```bash
 printf '["claude","pi"]\n' > config/enabled-agents.json && node scripts/build-rules.mjs --with-prompt
-printf '{"persona":true,"official":true,"ruleFiles":"rules.deepseek.2"}\n' > config/switches.json && node scripts/build-rules.mjs --with-prompt   # 持久改开关
-magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.deepseek.2"}'   # 临时覆盖，短名即目录名
-magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1"}'   # 换一份规则
+printf '{"persona":true,"official":true,"ruleFiles":"rules.claude.1","rulePosition":"before"}\n' > config/switches.json && node scripts/build-rules.mjs --with-prompt   # 持久改开关
+magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.claude.1","rulePosition":"before"}'   # 临时覆盖，短名即目录名
+magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1","rulePosition":"after"}'   # 换一份规则，规则排回人设后
 magpie plugin options system-prune '{"official":false}'                  # 官方正文原样
 magpie plugin options system-prune '{"ruleFiles":""}'                    # 只留人设
 ```
@@ -51,8 +52,8 @@ magpie plugin options system-prune '{"ruleFiles":""}'                    # 只�
 - **`>>> baked-rules` 之间不要手改**。那块由 `node scripts/build-rules.mjs --with-prompt` 生成，手改会被下一次 build 覆盖。
 - **不要用 `magpie plugin options` 当持久配置**。app 重启会用内存状态回写 `plugins.json`，CLI 设的 options 会丢（2026-10-29 实测，丢过一次，旧值只剩在 `plugins.json.bak`）。
 - **改中间件本体或烤入块必须换进程**：`magpie plugin off system-prune && magpie plugin on system-prune`，用 `pgrep -fl plugin-host` 看 pid 是否变了。只改 options 不用重启。
-- **人设默认开、规则默认主规则**：持久值写在 `config/switches.json`，build 烤进 `BAKED_RULES` 顶层；options 同名键只当临时覆盖，app 重启回写也不会改掉烤入值。`rules/rules.json` 是生成物，只给 verify / dump-diff / dry-run 用。
-- **人设写在 `prompt/persona*.md`（`## Routing` 之前）与 `prompt/rules*.md`（之后）**，新规则加一个 `rules.<主题>.md` 即可；build 按文件名排序烤成独立块，运行时用 `ruleFiles` 选；值直接写原文，没有 vars.json；不要直接改 `rules/rules.json`（生成物）。
+- **人设默认开、规则默认主规则、规则排在人设前**：持久值写在 `config/switches.json`，build 烤进 `BAKED_RULES` 顶层；options 同名键只当临时覆盖，app 重启回写也不会改掉烤入值。`rules/rules.json` 是生成物，只给 verify / dump-diff / dry-run 用。
+- **人设写在 `prompt/persona*.md`（`## Routing` 之前）与 `prompt/rules*.md`（之后）**，新规则加一个 `rules.<主题>.md` 即可；build 按文件名排序烤成独立块，运行时用 `ruleFiles` 选、`rulePosition` 定前后；值直接写原文，没有 vars.json；不要直接改 `rules/rules.json`（生成物）。
 - **官方只改冲突点**：`official` 默认开，删身份块、替换拒答/审批/发布口径、删品牌行；文本源是 `config/official.json`，`# Environment` 里的下载/解压行也走同一张表，自指模型行当前保留原文。`scripts/verify.mjs` 会断言身份句消失、冲突句已替换、Environment 按 `official` 处理。
 - 不碰 `x-anthropic-billing-header`：网关靠它记账，前置块插在它后面而不是第 0 位。
 
@@ -64,7 +65,7 @@ magpie plugin options system-prune '{"ruleFiles":""}'                    # 只�
 cd ~/projects/opensource/system-prune
 # 1) 改 prompt/persona*.md（## Routing 之前）或 prompt/rules*.md（之后，可多份）
 node scripts/build-rules.mjs --with-prompt   # 生成 rules/rules.json + 烤入中间件
-node test/test.mjs                           # 27 条单测
+node test/test.mjs                           # 28 条单测
 node scripts/verify.mjs claude               # claude 链路断言
 node scripts/verify.mjs pi                   # pi 链路断言
 node scripts/show-rules.mjs                  # 确认实际生效的是哪一份
@@ -93,7 +94,7 @@ magpie plugin off system-prune && magpie plugin on system-prune
 | `rules/rules.json` | 生成物：人设与全部规则块的离线完整规则集（给 verify / dump-diff 用） |
 | `rules/persona.payload.json` | 生成物：`middleware-system-prompt` 的载荷格式（备用） |
 | `config/enabled-agents.json` | 名单源，build 时烤入 `agents` |
-| `config/switches.json` | 开关源（`persona` / `official` / `ruleFiles`），build 时烤入 baked 顶层 |
+| `config/switches.json` | 开关源（`persona` / `official` / `ruleFiles` / `rulePosition`），build 时烤入 baked 顶层 |
 | `config/official.json` | 官方 prompt 的删块、删行、逐字替换文本；build 时读入并烤入 `official*` 数组 |
 | `samples/interactive-main.request.json` | 交互式 CLI 的原始请求快照（校验 + 探针底稿） |
 | `samples/claude-sdk.request.json` | SDK `claude -p` 入口的请求快照；与上者取并集校验 |

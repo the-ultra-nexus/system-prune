@@ -25,6 +25,7 @@ const flags = { persona: opts ? opts.persona !== false : true, official: opts ? 
 console.log("source      :", opts ? "options 叠在烤入规则上" : "只有烤入的规则（options 为空）")
 console.log("开关        :", `persona=${flags.persona ? "on" : "off"}`, `official=${flags.official ? "on" : "off"}`)
 console.log("system 块   :", blocks.length, `(改前 ${before} 字符 → 改后 ${blocks.join("\n").length})`)
+console.log("块顺序      :", blocks.map((t) => t.replace(/\s+/g, " ").slice(0, 16)).join(" → "))
 console.log("人设块      :", persona ? `${persona.length} 字符` : "缺失")
 console.log("规则块      :", ruleCount, "份")
 if (persona) console.log("开头三行    :", JSON.stringify(persona.split("\n").slice(0, 3)).slice(0, 160))
