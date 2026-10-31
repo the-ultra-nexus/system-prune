@@ -54,7 +54,7 @@ node scripts/show-rules.mjs
 node scripts/check-docs.mjs                  # 本文件的可机检条款
 ```
 
-全绿才算改完。只改注释、不动 `BAKED_RULES` 与导出时，可以跳过 `magpie plugin off/on`，并在收尾里说明跳过的原因。
+全绿才算改完。只改注释、不动 `BAKED_RULES` 与导出时，可以跳过 `magpie plugin off/on`（本机宿主是 cc-switch，这一步只在远程 `hw-ecs-ts` 上做），并在收尾里说明跳过的原因。
 
 ## 七、不要写进文档的东西
 

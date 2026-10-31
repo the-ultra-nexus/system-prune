@@ -57,10 +57,12 @@ magpie plugin add ~/projects/opensource/system-prune        # package.json 的 m
 magpie plugin add github:the-ultra-nexus/system-prune       # 从 GitHub 安装，注册名取 package.json 的 name
 magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.deepseek.2"}'   # 谁能被处理、改哪些官方冲突点、插哪份规则
 magpie plugin options system-prune '{"ruleFiles":""}'        # 只留人设，不插规则
-magpie plugin off system-prune && magpie plugin on system-prune   # 改了本体/烤入规则后换进程
+magpie plugin off system-prune && magpie plugin on system-prune   # 改了本体/烤入规则后换进程（仅远程 hw-ecs-ts）
 ```
 
 `magpie plugin options system-prune`（不带 JSON）是查看当前 options。
+
+> 本机（macOS）的宿主已从 magpie 换成 cc-switch；本页的 `magpie plugin ...` 命令只在远程 `hw-ecs-ts` 上执行。本地改完只跑 `node` 脚本，不重启 magpie。
 
 ## 选项一览
 
@@ -122,7 +124,7 @@ node scripts/verify.mjs pi                   # 真实请求链路（chat）
 node scripts/show-rules.mjs                  # 确认此刻实际生效的是哪一份
 node scripts/dump-diff.mjs                   # 重生成 docs/diff/ 对比材料
 node scripts/check-docs.mjs                  # 文档与代码一致性
-magpie plugin off system-prune && magpie plugin on system-prune
+magpie plugin off system-prune && magpie plugin on system-prune   # 仅远程 hw-ecs-ts；本机宿主是 cc-switch
 ```
 
 `scripts/build-rules.mjs` 把人设、规则块和官方冲突表烤进 `BAKED_RULES`，同时生成 `rules/rules.json` 给 verify / dump-diff。它不再校验官方提示词字面量。

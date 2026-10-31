@@ -9,14 +9,17 @@ const mod = await import("../src/system-prune.middleware.js")
 const body = JSON.parse(fs.readFileSync(SAMPLES.main, "utf8"))
 const before = body.system.map((b) => b.text || "").join("\n").length
 // 人设与规则块都是注入内容；官方残余要把它们整体剔掉，不能只剔人设块。
-const injected = new Set(JSON.parse(fs.readFileSync(RULES_FILE, "utf8")).prependBlocks.map((b) => b.text))
+// rules.json 的 prependBlocks[0] 固定是人设，用它认人设块（人设正文里不放标记）。
+const injectedBlocks = JSON.parse(fs.readFileSync(RULES_FILE, "utf8")).prependBlocks.map((b) => b.text)
+const injected = new Set(injectedBlocks)
+const personaText = injectedBlocks[0]
 
 const opts = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : undefined
 mod.onRequest(body, { protocol: "anthropic", agent: "claude", ...(opts ? { options: opts } : {}) })
 
 const blocks = body.system.map((b) => b.text || "")
-const persona = blocks.find((t) => t.includes("[OPERATION: STABLE]"))
-const ruleCount = blocks.filter((t) => injected.has(t) && !t.includes("[OPERATION: STABLE]")).length
+const persona = blocks.find((t) => t === personaText)
+const ruleCount = blocks.filter((t) => injected.has(t) && t !== personaText).length
 const official = blocks.filter((t) => !injected.has(t) && !t.startsWith("x-anthropic-billing")).join("\n")
 const tools = (body.tools || []).map((t) => t.description || "").join("\n")
 

@@ -51,7 +51,7 @@ magpie plugin options system-prune '{"ruleFiles":""}'                    # 只�
 
 - **`>>> baked-rules` 之间不要手改**。那块由 `node scripts/build-rules.mjs --with-prompt` 生成，手改会被下一次 build 覆盖。
 - **不要用 `magpie plugin options` 当持久配置**。app 重启会用内存状态回写 `plugins.json`，CLI 设的 options 会丢（2026-10-29 实测，丢过一次，旧值只剩在 `plugins.json.bak`）。
-- **改中间件本体或烤入块必须换进程**：`magpie plugin off system-prune && magpie plugin on system-prune`，用 `pgrep -fl plugin-host` 看 pid 是否变了。只改 options 不用重启。
+- **改中间件本体或烤入块必须换进程**：在远程 `hw-ecs-ts` 上 `magpie plugin off system-prune && magpie plugin on system-prune`，用 `pgrep -fl plugin-host` 看 pid 是否变了。本机宿主是 cc-switch，没有 magpie 进程，这一步本地跳过。只改 options 不用重启。
 - **人设默认开、规则默认主规则、规则排在人设前**：持久值写在 `config/switches.json`，build 烤进 `BAKED_RULES` 顶层；options 同名键只当临时覆盖，app 重启回写也不会改掉烤入值。`rules/rules.json` 是生成物，只给 verify / dump-diff / dry-run 用。
 - **人设写在 `prompt/persona*.md`（`## Routing` 之前）与 `prompt/rules*.md`（之后）**，新规则加一个 `rules.<主题>.md` 即可；build 按文件名排序烤成独立块，运行时用 `ruleFiles` 选、`rulePosition` 定前后；值直接写原文，没有 vars.json；不要直接改 `rules/rules.json`（生成物）。
 - **官方只改冲突点**：`official` 默认开，删身份块、替换拒答/审批/发布口径、删品牌行；文本源是 `config/official.json`，`# Environment` 里的下载/解压行也走同一张表，自指模型行当前保留原文。`scripts/verify.mjs` 会断言身份句消失、冲突句已替换、Environment 按 `official` 处理。
@@ -71,7 +71,7 @@ node scripts/verify.mjs pi                   # pi 链路断言
 node scripts/show-rules.mjs                  # 确认实际生效的是哪一份
 node scripts/dump-diff.mjs                   # 重生成 docs/diff/ 对比材料
 node scripts/check-docs.mjs                  # 文档与代码一致性
-magpie plugin off system-prune && magpie plugin on system-prune
+magpie plugin off system-prune && magpie plugin on system-prune   # 仅远程 hw-ecs-ts；本机宿主是 cc-switch
 ```
 
 ## 文件

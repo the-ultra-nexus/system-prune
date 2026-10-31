@@ -30,7 +30,7 @@ node scripts/verify.mjs claude               # 看「人设注入: 是」
 node scripts/verify.mjs pi
 node scripts/show-rules.mjs                  # 烤入默认：开关、块顺序、人设/规则块字数、计费头
 node scripts/check-docs.mjs
-magpie plugin off system-prune && magpie plugin on system-prune
+magpie plugin off system-prune && magpie plugin on system-prune   # 仅远程 hw-ecs-ts；本机宿主是 cc-switch
 ```
 
 通过标准：`verify` 两个 agent 都是「人设注入：是」「官方身份残留：否」「冲突点已替换：是」「Environment 随 official：是」；`show-rules` 不带参数时是「persona=on」、规则块 1 份、块顺序与 `rulePosition` 一致、计费头在最前。`build` 打印的人设字数/规则块数变了，是这一节唯一预期的数字变化。
@@ -50,12 +50,12 @@ node scripts/verify.mjs pi
 node scripts/show-rules.mjs                  # 看烤入的规则块数、块顺序与 rulePosition 是否对得上
 node scripts/show-rules.mjs rules/rules.json # 看离线完整规则集（人设 + 全部规则）
 node scripts/check-docs.mjs
-magpie plugin off system-prune && magpie plugin on system-prune
+magpie plugin off system-prune && magpie plugin on system-prune   # 仅远程 hw-ecs-ts；本机宿主是 cc-switch
 ```
 
 通过标准：`verify` 两个 agent 都是「人设注入：是」「官方身份残留：否」「冲突点已替换：是」「Environment 随 official：是」；`show-rules` 的「规则块」跟着 `ruleFiles` 变（`""` = 0 份）；`build` 打印的规则块数增加。
 
-换规则用 option 即可，不用改文件：`magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1"}'`。要让规则块排在人设前面，同时设 `"rulePosition":"before"`；切回 deepseek 规则时记得改回 `"after"`。持久默认改 `config/switches.json` 再 build。
+换规则用 option 即可，不用改文件：在 `hw-ecs-ts` 上跑 `magpie plugin options system-prune '{"ruleFiles":"rules.deepseek.1"}'`。要让规则块排在人设前面，同时设 `"rulePosition":"before"`；切回 deepseek 规则时记得改回 `"after"`。持久默认改 `config/switches.json` 再 build。
 
 ### 官方冲突点
 
@@ -100,9 +100,9 @@ node scripts/check-docs.mjs
 |---|---|
 | 规则/人设 | `git diff` 看清，再 `git checkout -- <file>`（不自动 commit 也不自动 revert，要人点头） |
 | 烤入块 | 改真源后重跑 `node scripts/build-rules.mjs --with-prompt`，不要反转产物 |
-| options | 手动设回 `magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.claude.1","rulePosition":"before"}'` |
+| options | 远程 `hw-ecs-ts`：手动设回 `magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.claude.1","rulePosition":"before"}'` |
 | 旧人设载荷 | `local/evi-backup.json`（本地文件，不进仓库） |
-| 网关进程 | `magpie plugin off system-prune && magpie plugin on system-prune` |
+| 网关进程 | 远程 `hw-ecs-ts`：`magpie plugin off system-prune && magpie plugin on system-prune`（本机宿主是 cc-switch，无此步） |
 
 ## 7. 失败处置
 

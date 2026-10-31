@@ -1,5 +1,5 @@
---- /Users/nexus/projects/opensource/system-prune/docs/diff/claude/before-official.md	2026-11-01 00:19:15
-+++ /Users/nexus/projects/opensource/system-prune/docs/diff/claude/after-official.md	2026-11-01 00:19:15
+--- /Users/nexus/projects/opensource/system-prune/docs/diff/claude/before-official.md	2026-11-01 02:37:24
++++ /Users/nexus/projects/opensource/system-prune/docs/diff/claude/after-official.md	2026-11-01 02:37:24
 @@ -1,14 +1,12 @@
 -You are Claude Code, Anthropic's official CLI for Claude.
 +You work with Ryu toward his goals, using your own judgment along the way.
