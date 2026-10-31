@@ -49,10 +49,11 @@ local/     本地备份与日志（`.gitignore` 里，不进仓库）
 
 ## 安装
 
-插件标识就是仓库目录名 `system-prune`（`magpie plugin add` 收目录路径，之后 on/off/options 都用这个名字）：
+插件标识就是仓库名 `system-prune`。本地安装注册名是目录名；GitHub 安装取 `package.json` 的 `name`，同样是 `system-prune`：
 
 ```bash
 magpie plugin add ~/projects/opensource/system-prune        # package.json 的 magpie.middleware 指向 src/ 里的本体
+magpie plugin add github:the-ultra-nexus/system-prune       # 从 GitHub 安装，注册名取 package.json 的 name
 magpie plugin options system-prune '{"agents":["claude","pi"],"persona":true,"official":true,"ruleFiles":"rules.deepseek.2"}'   # 谁能被处理、改哪些官方冲突点、插哪份规则
 magpie plugin options system-prune '{"ruleFiles":""}'        # 只留人设，不插规则
 magpie plugin off system-prune && magpie plugin on system-prune   # 改了本体/烤入规则后换进程

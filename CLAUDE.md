@@ -44,7 +44,7 @@ magpie plugin options system-prune '{"ruleFiles":""}'                    # 只�
 
 ## 插件标识
 
-`magpie plugin add` 收的是目录路径，注册名就是目录名 `system-prune`。后续 `on` / `off` / `options` 都用这个短名（绝对路径也认；`system-prune.middleware.js` 不行，会报 `no plugin`）。
+`magpie plugin add` 收目录路径时注册名就是目录名 `system-prune`；从 GitHub 安装时取 `package.json` 的 `name`，同样是 `system-prune`。后续 `on` / `off` / `options` 都用这个短名（绝对路径也认；`system-prune.middleware.js` 不行，会报 `no plugin`）。
 
 ## 硬约束
 

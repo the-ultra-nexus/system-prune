@@ -1,5 +1,6 @@
 {
-  "name": "system-prune-middleware",
+  "name": "system-prune",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,7 +18,7 @@
       "persona": true,
       "official": true,
       "ruleFiles": "rules.deepseek.2",
-      "agents": []
+      "agents": ["claude", "pi"]
     }
   }
 }
