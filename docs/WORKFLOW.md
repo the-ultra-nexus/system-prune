@@ -121,3 +121,4 @@ node scripts/check-docs.mjs
 - **options 不是持久配置**。app 重启会用内存状态回写 `plugins.json`（2026-10-29 实测丢过一次，旧值只剩 `plugins.json.bak`）。要持久就改 `config/enabled-agents.json` / `config/switches.json` 再 build。
 - **`probe/ab-test.mjs` 测的是行为 A/B**。它用 `claude -p` / `pi -p` 跑真实 agent，比较中间件开/关时的工具选择与风格；不再有 system 段消融。
 - **改一个字节就会掉缓存**。所以任何「按轮次精简 prompt」的想法，先在 `probe/ab-test.mjs` 里看缓存命中，再决定。
+- **远程更新不认 `plugin add`**。在 `hw-ecs-ts` 上重装同一个 GitHub spec 不会刷新（2026-11-01 实测仍停在旧提交）；`magpie plugin update` 是全量，会顺带更新 6 个社区 auth 插件。可靠路径是 `scp src/system-prune.middleware.js hw-ecs-ts:~/.config/magpie/plugins/node_modules/system-prune/src/`，再 `magpie plugin off/on system-prune`。手动覆盖后安装记录仍指旧提交，下次 `add` / `update` 会冲掉，重做一遍即可。
