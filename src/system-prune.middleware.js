@@ -14,7 +14,8 @@ const BAKED_RULES = {
   ],
   "officialDropLines": [
     "^ - Claude Code is available as a CLI in the terminal",
-    "^ - Fast mode for Claude Code"
+    "^ - Fast mode for Claude Code",
+    "^ - The most recent Claude models are the Claude 5 family"
   ],
   "officialReplacements": [
     [

@@ -1,5 +1,5 @@
---- /Users/nexus/projects/opensource/system-prune/docs/diff/claude/before-tools.md	2026-11-01 03:03:26
-+++ /Users/nexus/projects/opensource/system-prune/docs/diff/claude/after-tools.md	2026-11-01 03:03:26
+--- /Users/nexus/projects/opensource/system-prune/docs/diff/claude/before-tools.md	2026-11-02 01:20:09
++++ /Users/nexus/projects/opensource/system-prune/docs/diff/claude/after-tools.md	2026-11-02 01:20:09
 @@ -62,7 +62,7 @@
  
  **Separate tools**: Claude handles comment threads on a published artifact with `ArtifactComments` and an artifact's shared database with `ArtifactData`, whose actions are what a skill or type instruction means by `read_db` or `write_db`. Claude loads either tool when it needs it, and if one appears only as a deferred tool's name, Claude loads it the way this session loads deferred tools before calling it.
